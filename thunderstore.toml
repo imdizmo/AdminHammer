@@ -1,0 +1,22 @@
+[config]
+schemaVersion = "0.0.1"
+
+[package]
+namespace = "Jatify"
+name = "AdminHammer"
+versionNumber = "1.0.0"
+description = "Admin tool in SeneaL UI style: spawn creatures like the hammer places pieces, drop items like a broken chest, and change world modifiers live on your server."
+websiteUrl = "https://github.com/imdizmo/AdminHammer"
+containsNsfwContent = false
+
+[package.dependencies]
+denikson-BepInExPack_Valheim = "5.4.2202"
+ValheimModding-Jotunn = "2.30.2"
+seneaL-SeneaL_UI = "1.2.5"
+
+[publish]
+repository = "https://thunderstore.io"
+communities = ["valheim"]
+
+[publish.categories]
+valheim = ["tools", "client-side", "utility"]
