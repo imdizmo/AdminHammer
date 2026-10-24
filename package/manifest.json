@@ -1,6 +1,6 @@
 {
   "name": "AdminHammer",
-  "version_number": "1.0.1",
+  "version_number": "1.0.2",
   "website_url": "https://github.com/imdizmo/AdminHammer",
   "description": "Admin tool in SeneaL UI style: spawn creatures like the hammer places pieces, drop items like a broken chest, and change world modifiers live on your server.",
   "dependencies": [

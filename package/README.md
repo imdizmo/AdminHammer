@@ -13,6 +13,10 @@ An admin tool for server owners and game masters, built from **SeneaL UI**'s own
 - **Every creature by biome**, with a rendered portrait of each (cached after the first time), Deep North and Ashlands included. Hover anything for details.
 - **Add-on tabs.** Other mods can add their own tab to the panel (`AdminHammerApi.AddTab`).
 
+## Add-ons
+
+- [BuffMeDaddy](https://thunderstore.io/c/valheim/p/Jatify/BuffMeDaddy/): a Buffs tab to give yourself or other players any status effect, and switch off its time limit. Optional; AdminHammer works without it.
+
 ## Screenshots
 
 ![Spawn creatures: pick a biome and a creature, set stars and count](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/creatures.webp)
@@ -25,7 +29,7 @@ An admin tool for server owners and game masters, built from **SeneaL UI**'s own
 
 ![World modifiers, applied live on the server](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/world-modifiers.webp)
 
-The Buffs tab in the screenshots comes from a separate add-on and is not part of AdminHammer.
+The Buffs tab in the screenshots comes from the [BuffMeDaddy](https://thunderstore.io/c/valheim/p/Jatify/BuffMeDaddy/) add-on and is not part of AdminHammer.
 
 ## Requirements
 

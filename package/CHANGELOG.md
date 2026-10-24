@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.2
+
+- README: the BuffMeDaddy add-on. No code changes.
+
 ## 1.0.1
 
 - README: screenshots, and links to GitHub and jatify.com. No code changes.
