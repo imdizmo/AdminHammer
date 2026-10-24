@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- README: screenshots, and links to GitHub and jatify.com. No code changes.
+
 ## 1.0.0
 
 - First release: Admin hammer, creature placement, item drops, live world modifiers, SeneaL UI styling.

@@ -11,7 +11,7 @@ namespace Jatify.AdminHammer
     // like a broken chest) and set the world modifiers live. Only for the host or a server admin
     // (adminlist.txt). Nothing it spawns is marked cheated, and it only sets world keys the
     // world-modifier menu itself offers, so the world is never flagged either.
-    [BepInPlugin(Guid, "AdminHammer", "1.0.0")]
+    [BepInPlugin(Guid, "AdminHammer", "1.0.1")]
     [BepInDependency("seneaL.valheim.ui")]
     [BepInDependency(Jotunn.Main.ModGuid)]
     [NetworkCompatibility(CompatibilityLevel.NotEnforced, VersionStrictness.None)]   // nothing needed on the server or friends' clients

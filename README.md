@@ -2,6 +2,8 @@
 
 An admin tool for server owners and game masters, built from **SeneaL UI**'s own interface kit so it looks like the rest of your SeneaL game.
 
+[Thunderstore](https://thunderstore.io/c/valheim/p/Jatify/AdminHammer/) · [GitHub](https://github.com/imdizmo/AdminHammer) · [jatify.com](https://jatify.com/#adminhammer)
+
 ## What it does
 
 - **Admin hammer.** A gold hammer for admins. Right click opens the admin panel, like the hammer opens the build menu.
@@ -9,6 +11,21 @@ An admin tool for server owners and game masters, built from **SeneaL UI**'s own
 - **Drop items.** Pick an item and an amount (1, 10, 50 or a full stack) and it spills out in front of you, or a chosen player, like a broken chest.
 - **World modifiers, live.** The same sliders and switches as Valheim's world-modifier screen (combat, death penalty, resources, raids, portals, no build cost, passive mobs, ...), applied on the server at once. Only the menu's own settings are used, so the world is never flagged as cheated.
 - **Every creature by biome**, with a rendered portrait of each (cached after the first time), Deep North and Ashlands included. Hover anything for details.
+- **Add-on tabs.** Other mods can add their own tab to the panel (`AdminHammerApi.AddTab`).
+
+## Screenshots
+
+![Spawn creatures: pick a biome and a creature, set stars and count](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/creatures.webp)
+
+![A troll placed where you aim](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/spawned-troll.webp)
+
+![Spawn items: pick an item and an amount, then drop it](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/items.webp)
+
+![Dropped items, ready to pick up](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/dropped-items.webp)
+
+![World modifiers, applied live on the server](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/world-modifiers.webp)
+
+The Buffs tab in the screenshots comes from a separate add-on and is not part of AdminHammer.
 
 ## Requirements
 
