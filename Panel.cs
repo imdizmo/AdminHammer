@@ -90,7 +90,7 @@ namespace Jatify.AdminHammer
             Clear(_head); ClosePopup();
             var icon = ObjectDB.instance?.GetItemPrefab(Hammer.Prefab)?.GetComponent<ItemDrop>()?.m_itemData.GetIcon();   // the Admin hammer's own icon
             if (icon != null) { var i = JatifyLook.Img(_head, icon, Color.white, "Brand"); i.preserveAspect = true; Place(i.rectTransform, 18f, 14f, 28f, 28f); }
-            var brand = Text(_head, "AdminHammer", "bold", 16f, Color.white, icon != null ? 54f : 18f, 0f, 160f, Head);
+            var brand = Text(_head, "AdminHammer", "title", 22f, Color.white, icon != null ? 54f : 18f, 0f, 200f, Head);   // the panel's name in Valheim's Norse (as Jatify's panel titles)
             float x = (icon != null ? 54f : 18f) + Width(brand) + 24f;
             var names = new List<(string name, bool addon)> { ("Creatures", false), ("Items", false), ("World", false) };
             names.AddRange(AdminHammerApi.Tabs.Select(t => (t.Name, true)));

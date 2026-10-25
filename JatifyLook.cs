@@ -46,8 +46,9 @@ namespace Jatify
         internal static Color Color(string token, Color fallback) => Call("Color", token) is Color c && c.a > 0f ? c : fallback;
 
         private static TMP_FontAsset _valheim;
-        // "medium", "bold" or "mono"; Valheim's own font without Jatify
-        internal static TMP_FontAsset Font(string kind) => Call("Font", kind) as TMP_FontAsset ?? Valheim();
+        // "medium", "bold", "mono", "title" (panel titles) or "lore" (descriptions); Valheim's own fonts without Jatify
+        internal static TMP_FontAsset Font(string kind) => Call("Font", kind) as TMP_FontAsset ?? (kind == "title" ? Game("Valheim-Norsebold") : kind == "lore" ? Game("Valheim-AveriaSerifLibre") : null) ?? Valheim();
+        private static TMP_FontAsset Game(string name) { foreach (var t in Resources.FindObjectsOfTypeAll<TMP_FontAsset>()) if (t.name == name) return t; return null; }
         internal static TMP_FontAsset Font(string kind, TMP_FontAsset fallback) => Call("Font", kind) as TMP_FontAsset ?? fallback;
         private static TMP_FontAsset Valheim()
         {
