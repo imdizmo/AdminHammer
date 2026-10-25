@@ -115,7 +115,7 @@ namespace Jatify
             var view = Place(Node(parent, name), x, y, w, h);
             view.gameObject.AddComponent<RectMask2D>(); var hit = view.gameObject.AddComponent<Image>(); hit.color = new Color(0f, 0f, 0f, 0f);
             var content = Node(view, "Content"); content.anchorMin = new Vector2(0f, 1f); content.anchorMax = Vector2.one; content.pivot = new Vector2(0.5f, 1f); content.anchoredPosition = Vector2.zero; content.sizeDelta = Vector2.zero;
-            var sr = view.gameObject.AddComponent<ScrollRect>(); sr.content = content; sr.horizontal = false; sr.movementType = ScrollRect.MovementType.Clamped; sr.scrollSensitivity = 1500f;   // Jatify UI's (Kit.ScrollSpeed): Valheim's input module scrolls in tiny steps sr.inertia = false;
+            var sr = view.gameObject.AddComponent<ScrollRect>(); sr.content = content; sr.horizontal = false; sr.movementType = ScrollRect.MovementType.Clamped; sr.scrollSensitivity = 1500f; sr.inertia = false;   // Jatify UI's (Kit.ScrollSpeed): Valheim's input module scrolls in tiny steps
             return content;
         }
 
