@@ -245,7 +245,7 @@ namespace Jatify.AdminHammer
             {
                 var e = list[i];
                 var tile = Tile(_grid, e.Icon, e.Name, sel == e, 16f + (i % 3) * (tw + 8f), 14f + (i / 3) * 68f, tw,
-                    () => { _sel[Ours] = e.Prefab; _status = ""; PaintGrid(); PaintInspector(); },
+                    () => { _sel[Ours] = e.Prefab; _status = ""; if (Ours == Tab.Creatures && _target.Length == 0) { Act(); return; } PaintGrid(); PaintInspector(); },   // like the hammer: a creature goes straight to placing
                     () => { _sel[Ours] = e.Prefab; Act(); });
                 if (Ours == Tab.Creatures && e.Boss) Tag(tile, "BOSS", "boss");
             }
@@ -271,7 +271,7 @@ namespace Jatify.AdminHammer
             {
                 y += Meta(_ins, x, y, w, (e.Category == "Bosses" ? "Type" : "Biome", e.Category == "Bosses" ? "Boss" : e.Category), ("Stars", _stars > 0 ? new string('★', _stars) : "None"),
                     ("Count", _count.ToString()), ("Tamed", !e.Tameable ? "Can't be tamed" : _tamed ? "Yes" : "No"), ("Target", _target.Length > 0 ? _target : "Where I aim")) + 14f;
-                Para(_ins, _target.Length > 0 ? $"Spawns {_count} next to {_target}, facing them." : "The panel closes and a ghost follows your aim. Left click places, the wheel turns it, right click comes back here.", 12.5f, C("mute"), x, y, w, 70f);
+                Para(_ins, _target.Length > 0 ? $"Spawns {_count} next to {_target}, facing them." : "Clicking a creature closes the panel and a ghost follows your aim. Left click places, the wheel turns it, right click comes back here.", 12.5f, C("mute"), x, y, w, 70f);
                 Primary(_ins, _target.Length > 0 ? $"Spawn next to {_target}" : "Place where I aim", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
             }
             else
@@ -327,8 +327,8 @@ namespace Jatify.AdminHammer
             Clear(_foot);
             float x = 16f, h = Foot - 1f;
             if (Ext != null) { try { Ext.Footer?.Invoke(_foot); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); } }
-            else if (Ours == Tab.Creatures) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "place", x, h); Key(_foot, Plugin.KeyName, "open or close", x, h); }
-            else if (Ours == Tab.Items) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "drop", x, h); Key(_foot, "/", "search", x, h); }
+            else if (Ours == Tab.Creatures) { x = Key(_foot, "Click", _target.Length == 0 ? "place in the world" : "select", x, h); x = Key(_foot, "Right click", "close", x, h); Key(_foot, Plugin.KeyName, "open or close", x, h); }
+            else if (Ours == Tab.Items) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "drop", x, h); x = Key(_foot, "Right click", "close", x, h); Key(_foot, "/", "search", x, h); }
             else Key(_foot, Plugin.KeyName, "open or close", x, h);
             var r = Text(_foot, "Host or server admin only", "medium", 12.5f, C("mute"), 0f, 0f, 300f, h, TextAlignmentOptions.MidlineRight);
             Place(r.rectTransform, W - 16f - 300f, 0f, 300f, h);

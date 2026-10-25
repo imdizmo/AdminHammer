@@ -25,6 +25,19 @@ namespace Jatify.AdminHammer
         private static Panel _panel;
         private static bool _openedByHammer;
         private Harmony _harmony;
+        private static int _closedFrame = -1;
+
+        // Esc closes the panel and nothing else (Menu.Update would open the pause menu): EscPatch
+        internal static bool EscClose() { if (_panel == null || !_panel.Open) return false; _panel.Close(); _closedFrame = Time.frameCount; return true; }
+
+        private static readonly System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult> _hits = new System.Collections.Generic.List<UnityEngine.EventSystems.RaycastResult>();
+        private static bool OnRightAction()
+        {
+            var es = UnityEngine.EventSystems.EventSystem.current; if (es == null) return false;
+            _hits.Clear(); es.RaycastAll(new UnityEngine.EventSystems.PointerEventData(es) { position = Input.mousePosition }, _hits);
+            foreach (var h in _hits) { var c = h.gameObject.GetComponentInParent<AdminHammerUi.Clicks>(); if (c != null && c.Right != null) return true; }
+            return false;
+        }
 
         internal static bool PanelOpen => _panel != null && _panel.Open;
         internal static Panel CurrentPanel => _panel;
@@ -62,8 +75,10 @@ namespace Jatify.AdminHammer
                 if (!Spawner.CanAdmin) MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "Admin panel: you are not an admin on this server");
                 else { Placer.Stop(); _panel.Toggle(); }
             }
+            // like the hammer's build menu: right click closes it (not on a tile with its own right click: Buffs toggles)
+            if (_panel.Open && Input.GetMouseButtonDown(1) && !TypingPatch.Active && !OnRightAction()) { _panel.Close(); _closedFrame = Time.frameCount; }
             // The Admin hammer: right click opens the panel, where the vanilla hammer opens the build menu.
-            if (Hammer.Equipped && !_panel.Open && !Placer.Active && Input.GetMouseButtonDown(1) && !Menu.IsVisible()
+            if (Hammer.Equipped && !_panel.Open && Time.frameCount != _closedFrame && !Placer.Active && Input.GetMouseButtonDown(1) && !Menu.IsVisible()
                 && !InventoryGui.IsVisible() && !Minimap.IsOpen() && !Console.IsVisible() && !(Chat.instance != null && Chat.instance.HasFocus()))
             {
                 if (!Spawner.CanAdmin) MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "Admin hammer: you are not an admin on this server");
@@ -71,7 +86,6 @@ namespace Jatify.AdminHammer
             }
             // Opened from the hammer: closes when the hammer leaves the hand, like the build menu.
             if (_openedByHammer && (!_panel.Open || !Hammer.Equipped)) { if (_panel.Open) _panel.Close(); _openedByHammer = false; }
-            if (_panel.Open && Input.GetKeyDown(KeyCode.Escape)) _panel.Close();
             _panel.Tick();
             Placer.Tick();
             if (Placer.MenuRequested)
@@ -81,6 +95,13 @@ namespace Jatify.AdminHammer
                 _openedByHammer = Hammer.Equipped;
             }
         }
+    }
+
+    // Esc with the panel open closes it, not opens the pause menu (Valheim reads Esc in Menu.Update)
+    [HarmonyPatch(typeof(Menu), "Update")]
+    internal static class EscPatch
+    {
+        private static bool Prefix() => !(ZInput.GetKeyDown(KeyCode.Escape) && Plugin.EscClose());
     }
 
     // While the panel is open the game treats it as a menu: free cursor, no player input.
