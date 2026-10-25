@@ -1,408 +1,371 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using SeneaLUI.Components;
-using SeneaLUI.Core;
-using SeneaLUI.Theme;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using static Jatify.AdminHammer.AdminHammerUi;
 
 namespace Jatify.AdminHammer
 {
-    // The admin panel, built from SeneaL's own UI kit and laid out like its build menu
-    // (BuildMenuView: 1100x640 panel, tag column at x24, controls strip at x264, 72 px slots),
-    // so it follows SeneaL's look and settings. Three tabs: creatures, items, world.
-    // ponytail: rebuilds a tab's rows and slots on every change (no pooling); ~400 slots is fine.
+    // The admin panel from the Jatify design (live artifact, AdminHammer view): 1100 x 660, a header with the tabs, the
+    // target and Close; a rail (search, categories), the tiles with their options, an inspector with the one action
+    // that matters; a key-hint footer. World is one column of rows. Add-on tabs (AdminHammerApi) fill the body.
+    // ponytail: a change rebuilds the parts it touches (no pooling); a few hundred tiles is fine.
     internal sealed class Panel
     {
         private enum Tab { Creatures, Items, World }
+        private const float W = 1100f, H = 660f, Head = 56f, Foot = 44f, Body = H - Head - Foot, RailW = 232f, InsW = 288f, WorkW = W - RailW - InsW;
 
-        private readonly RectTransform _root, _panel, _specialRoot, _strip, _subs, _hints;
-        private readonly CanvasGroup _group;
-        private readonly TextMeshProUGUI _title, _specialText;
-        private readonly Slot _special;
-        private readonly Seg _tabs;
-        private readonly SearchBox _search;
-        private readonly ScrollBox _tags, _grid, _mods;
+        private readonly RectTransform _root, _head, _body, _foot;
+        private RectTransform _cats, _toolbar, _grid, _ins, _popup;
+        private TMP_InputField _search;
 
-        private Tab _tab = Tab.Creatures;
-        private string _cat = "Meadows", _query = "", _sel;
+        private int _tab;   // 0..2 ours, then add-on tabs
+        private readonly Dictionary<Tab, string> _cat = new Dictionary<Tab, string> { [Tab.Creatures] = "Meadows", [Tab.Items] = "Materials" };
+        private readonly Dictionary<Tab, string> _sel = new Dictionary<Tab, string>();
+        private string _query = "";
         private int _stars, _count = 1, _amount = 10;
         private string _target = "";   // "" = me / where I aim, else a player's name
+        private string _status = ""; private float _statusUntil;
+        private readonly List<RectTransform> _ext = new List<RectTransform>();
 
         internal bool Open => _root != null && _root.gameObject.activeSelf;
-        internal Transform Root => _root;
+        internal string Target => _target;
+        private Tab Ours => (Tab)Mathf.Min(_tab, 2);
+        private AdminHammerApi.Tab Ext => _tab >= 3 && _tab - 3 < AdminHammerApi.Tabs.Count ? AdminHammerApi.Tabs[_tab - 3] : null;
 
         internal Panel(Transform hudroot)
         {
-            _root = Ui.Node(hudroot, "AdminHammerPanel");
-            _root.anchorMin = _root.anchorMax = _root.pivot = new Vector2(0.5f, 0.5f);
-            _root.anchoredPosition = Vector2.zero;
-            _root.SetAsLastSibling();
-            _group = _root.gameObject.AddComponent<CanvasGroup>();
-
-            _panel = Ui.Center(_root, "panel", 0f, 50f, 1100f, 640f);
-            Ui.Panel(_panel, Skin.Sliced(64, Styles.Panel), Styles.Panel);
-            Ui.Img(Ui.Stretch(_panel, "inner", -5f), Skin.Sliced(48, Styles.PanelInner), Color.white).type = Image.Type.Sliced;
-            Ui.Img(_panel, null, Palette.Clear).raycastTarget = true;
-
-            var heading = TextStyles.Heading;
-            _title = Ui.Label(_panel, "title", heading, 0f, 24f, 20f + (32f - heading.Size * 1.3f) * 0.5f + heading.Baseline(1.3f), 500f, TextAlignmentOptions.TopLeft);
-            // Icon segments sized by their labels, as SeneaL's build menu does (By Usage / By Material ...).
-            var ext = AdminHammerApi.Tabs;
-            _tabs = new Seg(_panel, "tabs", new[] { "trophy", "chest", "gear" }.Concat(ext.Select(t => t.Icon ?? "star")).ToArray(), OnTab);
-            _tabs.SetLabels(new[] { "Creatures", "Items", "World" }.Concat(ext.Select(t => t.Name)).ToArray(), false);
-            _tabs.Root.anchoredPosition = new Vector2(-24f, -20f);
-
-            _specialRoot = Ui.TL(_panel, "special", 24f, 66f, 220f, 56f);
-            _special = new Slot(_specialRoot, "s", 0f, 0f, 56, 40, null);
-            var rowName = TextStyles.RowName;
-            _specialText = Ui.Label(_specialRoot, "t", rowName, 0f, 68f, (56f - rowName.Size * 1.3f) * 0.5f + rowName.Baseline(1.3f), 152f, TextAlignmentOptions.TopLeft);
-            _specialText.overflowMode = TextOverflowModes.Ellipsis;
-
-            _search = new SearchBox(_panel, "search", 220f);
-            _search.Root.anchoredPosition = new Vector2(24f, -134f);
-            _search.Changed += q => { _query = (q ?? "").Trim().ToLowerInvariant(); Paint(); };
-
-            _tags = new ScrollBox(_panel, "tags", 220f, 380f, 129f);
-            _tags.Place(24f, 178f, 220f, 380f, 4f);
-
-            _strip = Ui.TL(_panel, "strip", 264f, 66f, 812f, 34f);
-            Ui.Img(Ui.TL(_panel, "stripline", 264f, 100f, 812f, 1f), null, Palette.Rgba(214, 178, 110, 0.16f));
-            _subs = Ui.TL(_panel, "subs", 264f, 110f, 812f, 26f);
-            _grid = new ScrollBox(_panel, "grid", 10 * 80f - 8f, 420f, 160f);
-            _grid.Place(264f, 146f, 10 * 80f - 8f, 420f, 8f);
-            _mods = new ScrollBox(_panel, "mods", 812f, 456f, 120f);
-            _mods.Place(264f, 110f, 800f, 456f, 4f);
-            _hints = Ui.TL(_panel, "hints", 264f, 578f, 812f, 40f);
-            foreach (var t in ext)
+            _root = Node(hudroot, "AdminHammerPanel");
+            _root.anchorMin = _root.anchorMax = _root.pivot = new Vector2(0.5f, 0.5f); _root.anchoredPosition = new Vector2(0f, 30f); _root.sizeDelta = new Vector2(W, H);
+            var bg = Box(_root, "Panel", new Color(0.078f, 0.078f, 0.086f, 0.9f), C("glassLine"), 14); Fill(bg.rectTransform);
+            _head = Place(Node(_root, "Head"), 0f, 0f, W, Head);
+            Line(_root, 0f, Head, W);
+            _body = Place(Node(_root, "Body"), 0f, Head + 1f, W, Body - 1f);
+            Line(_root, 0f, H - Foot, W);
+            _foot = Place(Node(_root, "Foot"), 0f, H - Foot + 1f, W, Foot - 1f);
+            foreach (var t in AdminHammerApi.Tabs)
             {
-                var area = Ui.TL(_panel, "ext" + t.Name, 24f, 66f, 1052f, 552f);
+                var area = Place(Node(_root, "Ext " + t.Name), 0f, Head + 1f, W, Body - 1f);
                 try { t.Build?.Invoke(area); } catch (Exception e) { Log.Warn($"tab {t.Name}: {e}"); }
-                area.gameObject.SetActive(false);
-                _ext.Add(area);
+                area.gameObject.SetActive(false); _ext.Add(area);
             }
-
             _root.gameObject.SetActive(false);
-            // Portraits arrive over a few seconds: repaint the grid as they land (throttled).
-            Catalog.IconsChanged += () => { if (Open && _tab == Tab.Creatures) _iconsDirty = true; };
+            Catalog.IconsChanged += () => { if (Open && _tab == 0) _iconsDirty = true; };   // portraits arrive over a few seconds
         }
 
-        private readonly List<RectTransform> _ext = new List<RectTransform>();
-        private int ExtIndex => (int)_tab - 3;
-        private AdminHammerApi.Tab Ext => ExtIndex >= 0 ? AdminHammerApi.Tabs[ExtIndex] : null;
-
-        private bool _iconsDirty;
-        private float _repaintAt;
+        private bool _iconsDirty; private float _repaintAt;
 
         internal void Toggle() { if (Open) Close(); else Show(); }
 
         internal void Show()
         {
-            Catalog.Build();
-            Modifiers.Load();
-            _root.gameObject.SetActive(true);
-            _root.SetAsLastSibling();
-            Paint();
+            Catalog.Build(); Modifiers.Load();
+            _root.gameObject.SetActive(true); _root.SetAsLastSibling();
+            BuildTab();
         }
 
-        internal void Close()
-        {
-            _search.Blur();
-            _root.gameObject.SetActive(false);
-        }
+        internal void Close() { ClosePopup(); _root.gameObject.SetActive(false); }
 
         internal void Tick()
         {
             if (!Open) return;
             if (Ext != null) { try { Ext.Tick?.Invoke(); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); } }
-            if (_iconsDirty && Time.unscaledTime >= _repaintAt) { _iconsDirty = false; _repaintAt = Time.unscaledTime + 0.5f; PaintGrid(); PaintTags(); }
-            _search.Tick(true);
-            _grid.Tick(Hud.instance);
-            _tags.Tick(Hud.instance);
-            _mods.Tick(Hud.instance);
+            if (_iconsDirty && Time.unscaledTime >= _repaintAt) { _iconsDirty = false; _repaintAt = Time.unscaledTime + 0.5f; PaintGrid(); }
+            if (_status.Length > 0 && Time.unscaledTime > _statusUntil) { _status = ""; if (Ext == null && Ours != Tab.World) PaintInspector(); }
+            if (Input.GetKeyDown(KeyCode.Slash) && _search != null && !_search.isFocused && Ext == null) _search.ActivateInputField();
         }
 
-        private void OnTab(int i)
-        {
-            _tab = (Tab)i; _sel = null; _query = ""; _search.Clear();
-            if (Ext != null) { Paint(); return; }
-            _cat = _tab == Tab.Creatures ? "Meadows" : _tab == Tab.Items ? "Materials" : "";
-            Paint();
-        }
+        internal bool Typing => _search != null && _search.isFocused;
 
-        // ---- painting ------------------------------------------------------------------------
+        // the panel's status line (and add-ons' through AdminHammerApi.Status)
+        internal void Flash(string text) { _status = text; _statusUntil = Time.unscaledTime + 2.6f; if (Ext == null && Ours != Tab.World) PaintInspector(); else if (Ours == Tab.World && Ext == null) PaintWorld(); }
 
-        private void Paint()
+        // ---- header: the brand, tabs, target, Close ----------------------------------------------------------------
+        private void PaintHead()
         {
-            _tabs.SetOn((int)_tab);
-            for (int i = 0; i < _ext.Count; i++) _ext[i].gameObject.SetActive(i == ExtIndex);
-            bool ext = Ext != null;
-            _specialRoot.gameObject.SetActive(!ext); _strip.gameObject.SetActive(!ext); _hints.gameObject.SetActive(!ext);
-            if (ext)
+            Clear(_head); ClosePopup();
+            var icon = ObjectDB.instance?.GetItemPrefab(Hammer.Prefab)?.GetComponent<ItemDrop>()?.m_itemData.GetIcon();   // the Admin hammer's own icon
+            if (icon != null) { var i = JatifyLook.Img(_head, icon, Color.white, "Brand"); i.preserveAspect = true; Place(i.rectTransform, 18f, 14f, 28f, 28f); }
+            var brand = Text(_head, "AdminHammer", "bold", 16f, Color.white, icon != null ? 54f : 18f, 0f, 160f, Head);
+            float x = (icon != null ? 54f : 18f) + Width(brand) + 24f;
+            var names = new List<(string name, bool addon)> { ("Creatures", false), ("Items", false), ("World", false) };
+            names.AddRange(AdminHammerApi.Tabs.Select(t => (t.Name, true)));
+            for (int i = 0; i < names.Count; i++)
             {
-                _title.text = Ext.Title ?? Ext.Name;
-                _grid.SetActive(false); _tags.SetActive(false); _search.Root.gameObject.SetActive(false); _subs.gameObject.SetActive(false); _mods.SetActive(false);
-                try { Ext.Show?.Invoke(); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); }
-                return;
+                int k = i; bool on = i == _tab;
+                var hit = Box(_head, "Tab", NoColor, NoColor, 1);
+                var t = Text(hit.transform, names[i].name, "medium", 14f, on ? Color.white : C("dim"), 12f, 0f, 200f, Head);
+                float w = 12f + Width(t) + 12f;
+                if (names[i].addon)
+                {   // "add-on": the tab comes from another mod
+                    var chip = Box(hit.transform, "Addon", NoColor, C("glassLine"), 4); chip.raycastTarget = false;
+                    var ct = Text(chip.transform, "add-on", "mono", 10f, C("mute"), 0f, 0f, 60f, 16f, TextAlignmentOptions.Center);
+                    float cw = Width(ct) + 8f; Place(chip.rectTransform, w - 4f, (Head - 16f) / 2f, cw, 16f); Fill(ct.rectTransform); w += cw + 8f;
+                }
+                Place(hit.rectTransform, x, 0f, w, Head);
+                if (on) { var u = Box(hit.transform, "On", C("accent"), NoColor, 1); u.raycastTarget = false; Place(u.rectTransform, 12f, Head - 2f, w - 24f, 2f); }
+                On(hit, () => { _tab = k; _query = ""; BuildTab(); });
+                x += w + 4f;
             }
-            _title.text = _tab == Tab.Creatures ? "Spawn creatures" : _tab == Tab.Items ? "Spawn items" : "World modifiers";
-            bool grid = _tab != Tab.World;
-            _grid.SetActive(grid); _tags.SetActive(grid); _search.Root.gameObject.SetActive(grid);
-            _subs.gameObject.SetActive(grid); _mods.SetActive(!grid);
-            PaintSpecial();
-            if (grid) { PaintTags(); PaintGrid(); PaintSubs(); }
-            else PaintWorld();
-            PaintStrip();
-            PaintHints();
+            // right: target (not on World), Close
+            float right = W - 16f;
+            var close = Box(_head, "Close", NoColor, C("glassLine"), 8);
+            var ctext = Text(close.transform, "Close", "medium", 13f, C("dim"), 12f, 0f, 60f, 32f);
+            float cw2 = 12f + Width(ctext) + 8f;
+            float kx = Key(close.transform, "Esc", null, cw2, 32f);
+            Place(close.rectTransform, right - (kx - 10f), 12f, kx - 10f, 32f); On(close, Close);
+            right -= kx - 10f + 10f;
+            if (Ours != Tab.World || Ext != null)
+            {
+                if (Ext != null && !Ext.Targets) return;
+                string label = _target.Length > 0 ? _target : Ours == Tab.Creatures && Ext == null ? "Where I aim" : "Me";
+                var box = Box(_head, "Target", C("raised"), C("glassLine"), 8);
+                var tl = Text(box.transform, "Target", "medium", 13f, C("dim"), 12f, 0f, 60f, 32f); float tw = 12f + Width(tl) + 8f;
+                var val = Box(box.transform, "Value", C("raised2"), NoColor, 6);
+                var vt = Text(val.transform, label + "  ▾", "medium", 13f, Color.white, 10f, 0f, 160f, 26f); float vw = 10f + Width(vt) + 12f;
+                Place(val.rectTransform, tw, 3f, vw, 26f);
+                float bw = tw + vw + 4f; Place(box.rectTransform, right - bw, 12f, bw, 32f);
+                On(val, () => Popup(right - bw + tw, 12f + 32f + 4f));
+            }
         }
 
-        private List<Catalog.Entry> Source => _tab == Tab.Creatures ? Catalog.Creatures : Catalog.Items;
-        private string[] Categories => _tab == Tab.Creatures ? Catalog.CreatureCategories : Catalog.ItemCategories;
-
-        private IEnumerable<Catalog.Entry> Visible() =>
-            _query.Length > 0 ? Source.Where(e => e.Name.ToLowerInvariant().Contains(_query) || e.Prefab.ToLowerInvariant().Contains(_query))
-                              : Source.Where(e => e.Category == _cat);
-
-        private void PaintSpecial()
+        // the target's list, under its button
+        private void Popup(float x, float y)
         {
-            var e = _sel != null ? Source.FirstOrDefault(x => x.Prefab == _sel) : null;
-            _special.SetIcon(e?.Icon ?? Icons.Get(_tab == Tab.Creatures ? "stag" : _tab == Tab.Items ? "chest" : "gear"), e != null);
-            _specialText.text = e != null ? e.Name : _tab == Tab.Creatures ? "Pick a creature" : _tab == Tab.Items ? "Pick an item" : "Live on the server";
+            if (_popup != null) { ClosePopup(); return; }
+            var opts = new List<string> { "" }; opts.AddRange(Spawner.Players().Select(p => p.name));
+            var box = Box(_root, "TargetList", new Color(0.094f, 0.094f, 0.106f, 0.98f), C("glassLine"), 8); _popup = box.rectTransform;
+            float w = 180f, yy = 4f;
+            foreach (var o in opts)
+            {
+                string n = o; bool on = o == _target;
+                var row = Box(box.transform, "Opt", on ? C("raised2") : NoColor, NoColor, 6); Place(row.rectTransform, 4f, yy, w - 8f, 30f);
+                Text(row.transform, o.Length == 0 ? (Ours == Tab.Creatures && Ext == null ? "Where I aim" : "Me") : o, "medium", 13f, on ? Color.white : C("dim"), 10f, 0f, w - 28f, 30f);
+                On(row, () => { _target = n; ClosePopup(); AdminHammerApi.TargetChanged?.Invoke(); BuildTab(); });
+                yy += 32f;
+            }
+            Place(_popup, Mathf.Min(x, W - w - 8f), y, w, yy + 2f);
+        }
+        private void ClosePopup() { if (_popup != null) UnityEngine.Object.Destroy(_popup.gameObject); _popup = null; }
+
+        // ---- body ---------------------------------------------------------------------------------------------------
+        private void BuildTab()
+        {
+            for (int i = 0; i < _ext.Count; i++) _ext[i].gameObject.SetActive(_tab - 3 == i);
+            PaintHead(); Clear(_body); _search = null; _cats = _toolbar = _grid = _ins = null;
+            _body.gameObject.SetActive(Ext == null);
+            if (Ext != null) { try { Ext.Show?.Invoke(); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); } PaintFoot(); return; }
+            if (Ours == Tab.World) { PaintWorld(); PaintFoot(); return; }
+            // rail: search, categories
+            Line(_body, RailW, 0f, 1f, Body - 1f);
+            _search = Search(_body, "Search " + (Ours == Tab.Creatures ? "creatures" : "items"), 12f, 14f, RailW - 24f, q => { _query = (q ?? "").Trim().ToLowerInvariant(); PaintCats(); PaintToolbar(); PaintGrid(); });
+            _cats = Scroll(_body, "Cats", 12f, 60f, RailW - 24f, Body - 74f);
+            // work: toolbar, tiles
+            _toolbar = Place(Node(_body, "Toolbar"), RailW + 1f, 0f, WorkW - 1f, 58f);
+            var tl = Box(_body, "ToolbarLine", LineSoft, NoColor, 1); tl.raycastTarget = false; Place(tl.rectTransform, RailW + 1f, 58f, WorkW - 1f, 1f);
+            _grid = Scroll(_body, "Grid", RailW + 1f, 59f, WorkW - 1f, Body - 60f);
+            // inspector
+            Line(_body, RailW + WorkW, 0f, 1f, Body - 1f);
+            _ins = Place(Node(_body, "Inspector"), RailW + WorkW + 1f, 0f, InsW - 1f, Body - 1f);
+            PaintCats(); PaintToolbar(); PaintGrid(); PaintInspector(); PaintFoot();
         }
 
-        private void PaintTags()
+        private List<Catalog.Entry> Source => Ours == Tab.Creatures ? Catalog.Creatures : Catalog.Items;
+        private string[] Categories => Ours == Tab.Creatures ? Catalog.CreatureCategories : Catalog.ItemCategories;
+        private List<Catalog.Entry> Visible() =>
+            (_query.Length > 0 ? Source.Where(e => e.Name.ToLowerInvariant().Contains(_query) || e.Prefab.ToLowerInvariant().Contains(_query))
+                               : Source.Where(e => e.Category == _cat[Ours])).ToList();
+        private Catalog.Entry Selected => _sel.TryGetValue(Ours, out var p) ? Source.FirstOrDefault(e => e.Prefab == p) : null;
+
+        private void PaintCats()
         {
-            Clear(_tags.Content);
+            if (_cats == null) return; Clear(_cats);
             float y = 0f;
             foreach (var cat in Categories)
             {
-                var items = Source.Where(e => e.Category == cat).ToList();
-                if (items.Count == 0) continue;
-                bool on = _query.Length == 0 && cat == _cat;
-                var row = Ui.TL(_tags.Content, "t" + cat, 0f, y, 220f, 40f);
-                var band = Ui.Img(row, on ? Skin.Sliced(40, Styles.RowOn) : null, on ? Color.white : Palette.Clear);
-                band.type = Image.Type.Sliced; band.raycastTarget = true;
-                if (on) Ui.Img(Ui.Place(Ui.Node(row, "bar"), 0f, 0.5f, 0f, 0f, 3f, 26f), null, Palette.Gold);
-                Ui.Img(Ui.Place(Ui.Node(row, "fr"), 0f, 0.5f, 12f, 0f, 30f, 30f), Skin.Box(30, 30, Styles.SlotEmpty, 0), Color.white);
-                var icon = Ui.Icon(row, "i", items.FirstOrDefault(e => e.Icon != null)?.Icon, Color.white, 0f, 0.5f, 15f, 0f, 24f);
-                icon.preserveAspect = true;
-                var nameStyle = TextStyle.Medium(15f, on ? Palette.Parchment : Palette.Linen);
-                Ui.Label(row, "n", nameStyle, 0f, 54f, (40f - nameStyle.Size * 1.3f) * 0.5f + nameStyle.Baseline(1.3f), 120f, TextAlignmentOptions.TopLeft).text = cat;
-                var countStyle = TextStyle.SemiBold(12f, Palette.Ash);
-                Ui.Label(row, "c", countStyle, 1f, -12f, (40f - countStyle.Size * 1.3f) * 0.5f + countStyle.Baseline(1.3f), 44f, TextAlignmentOptions.TopRight).text = items.Count.ToString();
-                var c = cat;
-                Click(row, () => { _cat = c; _query = ""; _search.Clear(); Paint(); });
-                y += 43f;
+                int n = Source.Count(e => e.Category == cat); if (n == 0) continue;
+                string c = cat;
+                CatRow(_cats, cat, n, _query.Length == 0 && cat == _cat[Ours], y, RailW - 24f, () => { _cat[Ours] = c; _query = ""; if (_search != null) _search.text = ""; PaintCats(); PaintToolbar(); PaintGrid(); });
+                y += 38f;
             }
-            _tags.SetContentHeight(y);
+            _cats.sizeDelta = new Vector2(0f, y);
+        }
+
+        private void PaintToolbar()
+        {
+            if (_toolbar == null) return; Clear(_toolbar);
+            var list = Visible();
+            var t = Text(_toolbar, _query.Length > 0 ? "Results" : _cat[Ours], "bold", 15f, Color.white, 16f, 0f, 200f, 58f);
+            Text(_toolbar, list.Count.ToString(), "mono", 12f, C("mute"), 16f + Width(t) + 6f, 1f, 60f, 58f);
+            float right = WorkW - 1f - 16f;
+            if (Ours == Tab.Creatures)
+            {
+                right -= SegW(new[] { "1", "3", "5", "10" }); float cx = right;
+                Seg(_toolbar, cx, 14f, new[] { "1", "3", "5", "10" }, Array.IndexOf(new[] { 1, 3, 5, 10 }, _count), i => { _count = new[] { 1, 3, 5, 10 }[i]; PaintToolbar(); PaintInspector(); });
+                right = Label(_toolbar, "Count", cx) - 18f;
+                right -= SegW(new[] { "0★", "1★", "2★" }); float sx = right;
+                Seg(_toolbar, sx, 14f, new[] { "0★", "1★", "2★" }, _stars, i => { _stars = i; PaintToolbar(); PaintInspector(); });
+                Label(_toolbar, "Stars", sx);
+            }
+            else
+            {
+                var opts = new[] { "1", "10", "50", "Stack" }; var vals = new[] { 1, 10, 50, 0 };
+                right -= SegW(opts); Seg(_toolbar, right, 14f, opts, Array.IndexOf(vals, _amount), i => { _amount = vals[i]; PaintToolbar(); PaintInspector(); });
+                Label(_toolbar, "Amount", right);
+            }
+        }
+        // a small label right before a control, ending at x; returns its start
+        private float Label(Transform parent, string s, float x)
+        {
+            var t = Text(parent, s, "medium", 12f, C("mute"), 0f, 0f, 80f, 58f); float w = Width(t);
+            Place(t.rectTransform, x - 8f - w, 0f, w + 2f, 58f); return x - 8f - w;
+        }
+        private static float SegW(string[] labels)
+        {
+            float w = 2f;
+            foreach (var l in labels) { var t = JatifyLook.Text(null, l, "medium", 13f, Color.white); w += Mathf.Max(32f, Width(t) + 20f) + 2f; UnityEngine.Object.Destroy(t.gameObject); }
+            return w;
         }
 
         private void PaintGrid()
         {
-            Clear(_grid.Content);
-            int i = 0;
-            foreach (var e in Visible())
+            if (_grid == null) return; Clear(_grid);
+            var list = Visible(); var sel = Selected;
+            float tw = (WorkW - 1f - 32f - 16f) / 3f;
+            for (int i = 0; i < list.Count; i++)
             {
-                var slot = new Slot(_grid.Content, "p" + i, (i % 10) * 80f, (i / 10) * 80f, 72, 58, null, false);
-                slot.SetIcon(e.Icon ?? Icons.Get("stag"), e.Prefab == _sel);
-                Ui.Img(slot.Root, null, Palette.Clear).raycastTarget = true;
-                if (e.Boss)
-                {
-                    var star = Ui.TR(slot.Root, "star", 5f, 5f, 14f, 14f);
-                    Ui.Icon(star, "i", Icons.Get("star"), Palette.Gold, 0.5f, 0.5f, 0f, 0f, 14f);
-                }
-                var entry = e;
-                Tooltip.Bind(slot.Root, () => new Tip().Reset(entry.Name, 1).AddRow(entry.Category, entry.Prefab));
-                Click(slot.Root, () => Pick(entry));
-                i++;
+                var e = list[i];
+                var tile = Tile(_grid, e.Icon, e.Name, sel == e, 16f + (i % 3) * (tw + 8f), 14f + (i / 3) * 68f, tw,
+                    () => { _sel[Ours] = e.Prefab; _status = ""; PaintGrid(); PaintInspector(); },
+                    () => { _sel[Ours] = e.Prefab; Act(); });
+                if (Ours == Tab.Creatures && e.Boss) Tag(tile, "BOSS", "boss");
             }
-            _grid.SetContentHeight(Mathf.CeilToInt(i / 10f) * 80f);
-            _grid.ScrollTop();
+            if (list.Count == 0) Text(_grid, $"Nothing matches \"{_query}\". Try a shorter name.", "medium", 14f, C("mute"), 20f, 24f, WorkW - 40f, 24f);
+            _grid.sizeDelta = new Vector2(0f, 14f + Mathf.CeilToInt(list.Count / 3f) * 68f + 10f);
         }
 
-        private void PaintSubs()
+        private void PaintInspector()
         {
-            Clear(_subs);
-            float x = 0f;
-            var who = new List<string> { "" };
-            who.AddRange(Spawner.Players().Select(p => p.name));
-            foreach (var name in who)
+            if (_ins == null) return; Clear(_ins);
+            float w = InsW - 1f - 36f, x = 18f;
+            var e = Selected;
+            if (e == null)
             {
-                string label = name.Length == 0 ? (_tab == Tab.Creatures ? "Where I aim" : "Me") : name;
-                var n = name;
-                x += Button(_subs, label, x, 0f, 26, _target == n, () => { _target = n; Paint(); }) + 6f;
+                Para(_ins, Ours == Tab.Creatures ? "Pick a creature to place it where you aim or next to a player." : "Pick an item to drop it in front of you or a player.", 14f, C("mute"), x, 18f, w, 80f);
+                Status(x, w); return;
             }
-        }
-
-        private void PaintStrip()
-        {
-            Clear(_strip);
-            var lbl = TextStyles.CardLabel;
-            float x = 0f;
-            if (_tab == Tab.Creatures)
+            IconBox(_ins, e.Icon, e.Name, x, 18f, 56f, 12);
+            var name = Text(_ins, e.Name, "bold", 18f, Color.white, x + 68f, 20f, w - 68f, 28f); name.overflowMode = TextOverflowModes.Ellipsis;
+            Text(_ins, e.Prefab, "mono", 12f, C("mute"), x + 68f, 48f, w - 68f, 18f);
+            float y = 92f;
+            if (Ours == Tab.Creatures)
             {
-                x = Label(_strip, "STARS", x);
-                for (int s = 0; s <= 2; s++) { int v = s; x += Button(_strip, s == 0 ? "-" : new string('*', s), x, 3f, 28, _stars == s, () => { _stars = v; Paint(); }, 36f) + 4f; }
-                x = Label(_strip, "COUNT", x + 14f);
-                foreach (int n in new[] { 1, 3, 5, 10 }) { int v = n; x += Button(_strip, n.ToString(), x, 3f, 28, _count == n, () => { _count = v; Paint(); }, 40f) + 4f; }
-            }
-            else if (_tab == Tab.Items)
-            {
-                x = Label(_strip, "AMOUNT", x);
-                foreach (int n in new[] { 1, 10, 50, 0 }) { int v = n; x += Button(_strip, n == 0 ? "Stack" : n.ToString(), x, 3f, 28, _amount == n, () => { _amount = v; Paint(); }, n == 0 ? 64f : 44f) + 4f; }
-            }
-        }
-
-        private void PaintHints()
-        {
-            Clear(_hints);
-            float x = 0f;
-            // "Close [Esc]" bottom right, like SeneaL's build menu.
-            var esc = new Keycap(_hints, "esc", 24, 26f, 8f, Styles.Key, TextStyles.Key);
-            esc.Set("Esc");
-            float escW = Mathf.Max(34f, esc.Root.sizeDelta.x);
-            esc.Root.anchoredPosition = new Vector2(812f - escW, -8f);
-            var close = Ui.Label(_hints, "close", TextStyles.Hint, 0f, 812f - escW - 160f, 26f, 152f, TextAlignmentOptions.TopRight);
-            close.text = "Close";
-            if (_tab == Tab.Creatures)
-            {
-                x = Key(_hints, "LMB", "place", x); x = Key(_hints, "RMB", "menu", x); x = Key(_hints, "Wheel", "turn", x);
-            }
-            else if (_tab == Tab.Items)
-            {
-                var drop = new GoldButton(_hints, "drop", 140f, Drop, 36);
-                drop.SetLabel("Drop");
-                drop.SetEnabled(_sel != null);
-                drop.Root.anchoredPosition = new Vector2(812f - escW - 80f - 140f, -2f);
-                x = Key(_hints, "Click", "pick an item", x);
+                y += Meta(_ins, x, y, w, (e.Category == "Bosses" ? "Type" : "Biome", e.Category == "Bosses" ? "Boss" : e.Category), ("Stars", _stars > 0 ? new string('★', _stars) : "None"),
+                    ("Count", _count.ToString()), ("Target", _target.Length > 0 ? _target : "Where I aim")) + 14f;
+                Para(_ins, _target.Length > 0 ? $"Spawns {_count} next to {_target}, facing them." : "The panel closes and a ghost follows your aim. Left click places, the wheel turns it, right click comes back here.", 12.5f, C("mute"), x, y, w, 70f);
+                Primary(_ins, _target.Length > 0 ? $"Spawn next to {_target}" : "Place where I aim", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
             }
             else
             {
-                Ui.Label(_hints, "w", TextStyles.Hint, 0f, 0f, 24f, 700f, TextAlignmentOptions.TopLeft).text =
-                    "Only the world-modifier menu's own settings, so the world is never flagged as cheated.";
+                int amount = _amount == 0 ? e.MaxStack : _amount;
+                y += Meta(_ins, x, y, w, ("Category", e.Category), ("Stack size", e.MaxStack.ToString()), ("Amount", _amount == 0 ? $"Full stack ({e.MaxStack})" : _amount.ToString()), ("For", _target.Length > 0 ? _target : "Me")) + 14f;
+                Para(_ins, "Spills out like a broken chest. Double click a tile to drop straight away.", 12.5f, C("mute"), x, y, w, 50f);
+                Primary(_ins, $"Drop {amount}", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
             }
+            Status(x, w);
         }
+        private void Status(float x, float w) => Text(_ins, _status, "medium", 12f, C("accent"), x, Body - 1f - 18f - 22f, w, 20f);
 
+        // ---- world ----------------------------------------------------------------------------------------------------
         private void PaintWorld()
         {
-            Clear(_mods.Content);
+            Clear(_body);
+            var list = Scroll(_body, "World", 0f, 0f, W, Body - 1f);
+            float y = 14f, x = 18f, w = W - 36f;
+            var ban = Box(list, "Banner", C("accentSoft"), NoColor, 10); ban.raycastTarget = false; Place(ban.rectTransform, x, y, w, 40f);
+            Text(ban.transform, "Only the game's own world-modifier settings are used, so the world is never flagged as cheated. Changes apply live on the server.", "medium", 13f, C("accent"), 14f, 0f, w - 28f, 40f);
+            y += 48f;
             var cur = Modifiers.Current();
-            float y = 0f;
+            Section(list, "Difficulty", x + 2f, y + 6f, 300f); y += 30f;
             foreach (var s in Modifiers.Sliders)
             {
-                int active = Modifiers.Active(s, cur);
-                var row = Row(_mods.Content, s.Name, s.Tip, y);
-                float x = 220f;
-                for (int i = 0; i < s.Settings.Count; i++)
-                {
-                    int idx = i; var sl = s;
-                    x += Button(row, s.Settings[i].name, x, 12f, 28, i == active, () => { Modifiers.Apply(sl, idx); Toast($"{sl.Name}: {sl.Settings[idx].name}"); Later(PaintWorld); }) + 4f;
-                }
-                y += 58f;
+                var row = WorldRow(list, s.Name, s.Tip, x, y, w);
+                var labels = s.Settings.Select(t => t.name).ToArray(); float sw = SegW(labels); var sl = s;
+                Seg(row, w - 14f - sw, (64f - 30f) / 2f, labels, Modifiers.Active(s, cur), i => { Modifiers.Apply(sl, i); Flash($"{sl.Name}: {sl.Settings[i].name}"); Later(PaintWorld); }, true);
+                y += 72f;
             }
+            Section(list, "Rules", x + 2f, y + 6f, 300f); y += 30f;
             foreach (var t in Modifiers.Toggles)
             {
-                var row = Row(_mods.Content, t.Name, t.Tip, y);
-                var sw = new SwitchBox(row, "sw", on => { Modifiers.Set(t, on); Toast($"{t.Name}: {(on ? "on" : "off")}"); Later(PaintWorld); });
-                sw.Set(cur.Contains(t.Key));
-                Ui.Place(sw.Root, 1f, 0.5f, -16f, 0f, sw.Root.sizeDelta.x, sw.Root.sizeDelta.y);
-                y += 58f;
+                var row = WorldRow(list, t.Name, t.Tip, x, y, w); var tt = t;
+                Switch(row, w - 14f - 38f, 21f, cur.Contains(t.Key), on => { Modifiers.Set(tt, on); Flash($"{tt.Name}: {(on ? "on" : "off")}"); Later(PaintWorld); });
+                y += 72f;
             }
-            _mods.SetContentHeight(y);
+            if (_status.Length > 0) Text(list, _status, "medium", 12f, C("accent"), x + 2f, y, w, 20f);
+            list.sizeDelta = new Vector2(0f, y + 30f);
+        }
+        private static RectTransform WorldRow(Transform parent, string name, string tip, float x, float y, float w)
+        {
+            var row = Box(parent, "Row", C("raised"), LineSoft, 10); row.raycastTarget = false; Place(row.rectTransform, x, y, w, 64f);
+            Text(row.transform, name, "bold", 14f, Color.white, 14f, 10f, 520f, 22f);
+            if (!string.IsNullOrEmpty(tip)) { var p = Text(row.transform, tip, "medium", 12.5f, C("mute"), 14f, 32f, 520f, 22f); p.overflowMode = TextOverflowModes.Ellipsis; }
+            return row.rectTransform;
         }
 
-        // ---- actions -------------------------------------------------------------------------
-
-        private void Pick(Catalog.Entry e)
+        // ---- footer ---------------------------------------------------------------------------------------------------
+        private void PaintFoot()
         {
-            _sel = e.Prefab;
-            if (_tab == Tab.Creatures)
+            Clear(_foot);
+            float x = 16f, h = Foot - 1f;
+            if (Ext != null) { try { Ext.Footer?.Invoke(_foot); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); } }
+            else if (Ours == Tab.Creatures) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "place", x, h); Key(_foot, Plugin.KeyName, "open or close", x, h); }
+            else if (Ours == Tab.Items) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "drop", x, h); Key(_foot, "/", "search", x, h); }
+            else Key(_foot, Plugin.KeyName, "open or close", x, h);
+            var r = Text(_foot, "Host or server admin only", "medium", 12.5f, C("mute"), 0f, 0f, 300f, h, TextAlignmentOptions.MidlineRight);
+            Place(r.rectTransform, W - 16f - 300f, 0f, 300f, h);
+        }
+
+        // ---- actions --------------------------------------------------------------------------------------------------
+        private void Act()
+        {
+            var e = Selected; if (e == null) return;
+            if (Ours == Tab.Creatures)
             {
-                if (_target.Length == 0) { if (Placer.Begin(e.Prefab, _stars, _count)) Close(); else Paint(); return; }
+                if (_target.Length == 0) { if (Placer.Begin(e.Prefab, _stars, _count)) Close(); return; }
                 var p = Spawner.Players().FirstOrDefault(x => x.name == _target);
-                if (p.name == null) { Toast($"{_target} is not online"); return; }
+                if (p.name == null) { Flash($"{_target} is not online"); return; }
                 for (int i = 0; i < _count; i++)
                     Spawner.Creature(e.Prefab, p.pos + p.forward * 5f + Vector3.up + UnityEngine.Random.insideUnitSphere * 2f, Quaternion.LookRotation(-p.forward), _stars);
-                Toast($"{_count} x {e.Name} next to {_target}");
-            }
-            Paint();
-        }
-
-        private void Drop()
-        {
-            var e = Catalog.Items.FirstOrDefault(x => x.Prefab == _sel);
-            if (e == null) return;
-            int amount = _amount == 0 ? e.MaxStack : _amount;
-            if (_target.Length == 0)
-            {
-                var me = Player.m_localPlayer;
-                if (me != null) Spawner.Spill(e.Prefab, amount, me.transform.position, me.transform.forward);
-                Toast($"{amount} x {e.Name}");
+                Flash($"Spawned {_count} × {e.Name}{(_stars > 0 ? " " + new string('★', _stars) : "")} next to {_target}");
             }
             else
             {
-                var p = Spawner.Players().FirstOrDefault(x => x.name == _target);
-                if (p.name == null) { Toast($"{_target} is not online"); return; }
-                Spawner.Spill(e.Prefab, amount, p.pos, p.forward);
-                Toast($"{amount} x {e.Name} for {_target}");
+                int amount = _amount == 0 ? e.MaxStack : _amount;
+                if (_target.Length == 0)
+                {
+                    var me = Player.m_localPlayer; if (me == null) return;
+                    Spawner.Spill(e.Prefab, amount, me.transform.position, me.transform.forward);
+                    Flash($"Dropped {amount} × {e.Name} in front of you");
+                }
+                else
+                {
+                    var p = Spawner.Players().FirstOrDefault(x => x.name == _target);
+                    if (p.name == null) { Flash($"{_target} is not online"); return; }
+                    Spawner.Spill(e.Prefab, amount, p.pos, p.forward);
+                    Flash($"Dropped {amount} × {e.Name} for {_target}");
+                }
             }
         }
 
-        // ---- small builders ------------------------------------------------------------------
-
-        private static void Clear(Transform t) { for (int i = t.childCount - 1; i >= 0; i--) UnityEngine.Object.Destroy(t.GetChild(i).gameObject); }
-
-        private static void Click(RectTransform rt, Action a) => rt.gameObject.AddComponent<UIInputHandler>().m_onLeftClick = _ => a();
-
-        // A small SeneaL button, gold when on; returns its width.
-        private static float Button(RectTransform parent, string label, float x, float y, int h, bool on, Action a, float w = 0f)
+        private static void Line(Transform parent, float x, float y, float w, float h = 1f)
         {
-            if (w <= 0f) w = Mathf.Max(56f, 18f + label.Length * 8f);
-            var b = new GoldButton(parent, "b" + label, w, a, h, !on, on ? null : TextStyles.BtnSmallDark);
-            b.SetLabel(label);
-            b.Root.anchoredPosition = new Vector2(x, -y);
-            return w;
+            var l = Box(parent, "Line", C("glassLine"), NoColor, 1); l.raycastTarget = false; Place(l.rectTransform, x, y, w, h);
         }
 
-        private static float Label(RectTransform parent, string text, float x)
-        {
-            var s = TextStyles.CardLabel;
-            var t = Ui.Label(parent, "l" + text, s, 0f, x, 22f, 120f, TextAlignmentOptions.TopLeft);
-            t.text = text;
-            return x + t.preferredWidth + 10f;
-        }
-
-        private static float Key(RectTransform parent, string key, string text, float x)
-        {
-            var k = new Keycap(parent, "k" + key, 24, 26f, 8f, Styles.Key, TextStyles.Key);
-            k.Set(key);
-            k.Root.anchoredPosition = new Vector2(x, -8f);
-            float w = Mathf.Max(26f, k.Root.sizeDelta.x);
-            var t = Ui.Label(parent, "kt" + key, TextStyles.Hint, 0f, x + w + 6f, 26f, 160f, TextAlignmentOptions.TopLeft);
-            t.text = text;
-            return x + w + 12f + t.preferredWidth + 18f;
-        }
-
-        private static RectTransform Row(RectTransform parent, string name, string tip, float y)
-        {
-            var row = Ui.TL(parent, "r" + name, 0f, y, 800f, 52f);
-            Ui.Img(row, Skin.Sliced(52, Styles.SkillRow), Color.white).type = Image.Type.Sliced;
-            var title = TextStyle.SemiBold(14f, Palette.Parchment);
-            Ui.Label(row, "n", title, 0f, 16f, 22f, 196f, TextAlignmentOptions.TopLeft).text = name;
-            if (!string.IsNullOrEmpty(tip))
-            {
-                var t = Ui.Label(row, "d", TextStyles.Desc, 0f, 16f, 40f, 196f, TextAlignmentOptions.TopLeft);
-                t.text = tip; t.fontSize = 11f; t.overflowMode = TextOverflowModes.Ellipsis;
-            }
-            return row;
-        }
-
-        private static void Toast(string text) => MessageHud.instance?.ShowMessage(MessageHud.MessageType.TopLeft, text);
-
-        // The server's keys come back a moment after we send them; repaint then.
+        // the server's keys come back a moment after we send them; repaint then
         private void Later(Action a) => Plugin.Instance.StartCoroutine(After(0.6f, a));
-        private static System.Collections.IEnumerator After(float s, Action a) { yield return new WaitForSeconds(s); a(); }
+        private System.Collections.IEnumerator After(float s, Action a) { yield return new WaitForSeconds(s); if (Open) a(); }
     }
 }

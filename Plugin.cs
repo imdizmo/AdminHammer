@@ -7,12 +7,13 @@ using UnityEngine;
 
 namespace Jatify.AdminHammer
 {
-    // Admin panel in SeneaL UI's style: spawn creatures (placed like the hammer) and items (spilled
-    // like a broken chest) and set the world modifiers live. Only for the host or a server admin
+    // Admin panel in the Jatify design (Jatify UI's look when installed, the design's own colours and Valheim's font
+    // otherwise): spawn creatures (placed like the hammer) and items (spilled like a broken chest) and set the world
+    // modifiers live. Only for the host or a server admin
     // (adminlist.txt). Nothing it spawns is marked cheated, and it only sets world keys the
     // world-modifier menu itself offers, so the world is never flagged either.
-    [BepInPlugin(Guid, "AdminHammer", "1.0.2")]
-    [BepInDependency("seneaL.valheim.ui")]
+    [BepInPlugin(Guid, "AdminHammer", "1.1.0")]
+    [BepInDependency("jatify.ui", BepInDependency.DependencyFlags.SoftDependency)]
     [BepInDependency(Jotunn.Main.ModGuid)]
     [NetworkCompatibility(CompatibilityLevel.NotEnforced, VersionStrictness.None)]   // nothing needed on the server or friends' clients
     public class Plugin : BaseUnityPlugin
@@ -24,12 +25,14 @@ namespace Jatify.AdminHammer
         private static bool _openedByHammer;
 
         internal static bool PanelOpen => _panel != null && _panel.Open;
+        internal static Panel CurrentPanel => _panel;
+        internal static string KeyName => _key != null ? _key.Value.ToString() : "Insert";
 
         private void Awake()
         {
             Instance = this;
             Log.Bind(Logger);
-            _key = Config.Bind("General", "Key", KeyCode.Insert, "Opens and closes the admin panel. Not F7 (SeneaL UI's settings since 1.1.9) or F9 (Valheim cycles the controller layout).");
+            _key = Config.Bind("General", "Key", KeyCode.Insert, "Opens and closes the admin panel. Not F9 (Valheim cycles the controller layout).");
             new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
             Hammer.Register();
             CommandManager.Instance.AddConsoleCommand(new HammerCommand());
@@ -41,11 +44,9 @@ namespace Jatify.AdminHammer
             if (_panel == null)
             {
                 _panel = new Panel(Hud.instance.m_rootObject.transform);
-                TooltipTicker.Panel = _panel;
-                if (GetComponent<TooltipTicker>() == null) gameObject.AddComponent<TooltipTicker>();
             }
 
-            if (Input.GetKeyDown(_key.Value) && !Console.IsVisible() && !(Chat.instance != null && Chat.instance.HasFocus()))
+            if (Input.GetKeyDown(_key.Value) && !_panel.Typing && !Console.IsVisible() && !(Chat.instance != null && Chat.instance.HasFocus()))
             {
                 if (!Spawner.CanAdmin) MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "Admin panel: you are not an admin on this server");
                 else { Placer.Stop(); _panel.Toggle(); }
@@ -79,8 +80,7 @@ namespace Jatify.AdminHammer
     }
 
     // Valheim frees the cursor only when no menu reports itself visible, so the patch above alone
-    // keeps it captured. While the panel is open, unlock and show it ourselves (as SeneaL does for
-    // its smelter window) and skip the game's capture logic.
+    // keeps it captured. While the panel is open, unlock and show it ourselves and skip the game's capture logic.
     [HarmonyPatch(typeof(GameCamera), nameof(GameCamera.UpdateMouseCapture))]
     internal static class PanelCursorPatch
     {

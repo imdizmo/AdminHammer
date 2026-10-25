@@ -1,6 +1,6 @@
 # AdminHammer
 
-An admin tool for server owners and game masters, built from **SeneaL UI**'s own interface kit so it looks like the rest of your SeneaL game.
+An admin tool for server owners and game masters, in the Jatify design. With [Jatify UI](https://jatify.com) installed it has Jatify UI's exact look; without it, the same design in Valheim's font. Needs no other UI mod.
 
 [Thunderstore](https://thunderstore.io/c/valheim/p/Jatify/AdminHammer/) · [GitHub](https://github.com/imdizmo/AdminHammer) · [jatify.com](https://jatify.com/#adminhammer)
 
@@ -35,7 +35,6 @@ The Buffs tab in the screenshots comes from the [BuffMeDaddy](https://thundersto
 
 - [BepInExPack Valheim](https://thunderstore.io/c/valheim/p/denikson/BepInExPack_Valheim/) 5.4.2202 or newer
 - [Jotunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/) 2.30.2 or newer
-- [SeneaL UI](https://thunderstore.io/c/valheim/p/seneaL/SeneaL_UI/) 1.2.5 or newer
 
 A mod manager (r2modman, Gale, Thunderstore App) installs them for you.
 
@@ -67,12 +66,11 @@ Only you need the mod: nothing is required on the server or on other players' cl
 
 ## Credits
 
-- Interface: drawn at runtime with [SeneaL UI](https://thunderstore.io/c/valheim/p/seneaL/SeneaL_UI/)'s components, theme and icons, by seneaL. None of SeneaL UI's files are included in this package; it must be installed separately.
-- Icons: SeneaL UI's adaptation of [Phosphor Icons](https://phosphoricons.com) (MIT License, © 2023 Phosphor Icons).
+- Interface: the Jatify design; with Jatify UI installed, its fonts, panels and colours.
 - Item and command registration: [Jotunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/), by the Valheim Modding team.
 - Mod loader: [BepInEx](https://github.com/BepInEx/BepInEx).
 - Creature biomes: Valheim's own spawn tables, plus the creature list of the [Valheim Wiki](https://valheim.weirdgloop.org/w/Creatures).
 
-AdminHammer is an unofficial, fan-made mod. It is not made, endorsed or supported by seneaL or Iron Gate AB. Please report AdminHammer bugs here, not to SeneaL UI. Valheim is a trademark of Iron Gate AB.
+AdminHammer is an unofficial, fan-made mod. It is not made, endorsed or supported by Iron Gate AB. Please report AdminHammer bugs here. Valheim is a trademark of Iron Gate AB.
 
 Source: https://github.com/imdizmo/AdminHammer (MIT; the MIT licence covers AdminHammer's own code only)
