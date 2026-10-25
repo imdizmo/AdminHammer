@@ -68,6 +68,7 @@ namespace Jatify.AdminHammer
         }
 
         internal void Close() { ClosePopup(); _root.gameObject.SetActive(false); }
+        internal void Destroy() { if (_root != null) UnityEngine.Object.Destroy(_root.gameObject); }
 
         internal void Tick()
         {

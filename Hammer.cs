@@ -15,7 +15,29 @@ namespace Jatify.AdminHammer
         internal const string Prefab = "Jatify_AdminHammer";
         private static readonly Color Gold = new Color(1f, 0.78f, 0.36f);
 
-        internal static void Register() => PrefabManager.OnVanillaPrefabsAvailable += Add;
+        // Hot reloads (the dev profile's ScriptEngine): the item stays registered with Jotunn from the first load, which keeps
+        // adding it to every world, so a reload finds it there and leaves it. Loaded into a running game without it, it is
+        // made now and put into the open world's lists too.
+        internal static void Register()
+        {
+            if (ItemManager.Instance.GetItem(Prefab) != null) return;
+            if (ObjectDB.instance != null && ObjectDB.instance.m_items.Count > 0) { Add(); Live(); }
+            else PrefabManager.OnVanillaPrefabsAvailable += Add;
+        }
+
+        private static void Live()
+        {
+            var item = ItemManager.Instance.GetItem(Prefab); var db = ObjectDB.instance; if (item == null || db == null || db.GetItemPrefab(Prefab) != null) return;
+            db.m_items.Add(item.ItemPrefab);
+            if (item.Recipe?.Recipe != null) db.m_recipes.Add(item.Recipe.Recipe);
+            HarmonyLib.AccessTools.Method(typeof(ObjectDB), "UpdateRegisters")?.Invoke(db, null);
+            var scene = ZNetScene.instance;
+            if (scene != null && !scene.m_prefabs.Contains(item.ItemPrefab))
+            {
+                scene.m_prefabs.Add(item.ItemPrefab);
+                HarmonyLib.AccessTools.FieldRefAccess<ZNetScene, System.Collections.Generic.Dictionary<int, GameObject>>("m_namedPrefabs")(scene)[Prefab.GetStableHashCode()] = item.ItemPrefab;
+            }
+        }
 
         private static void Add()
         {

@@ -1,3 +1,4 @@
+using System.Linq;
 using BepInEx;
 using BepInEx.Configuration;
 using HarmonyLib;
@@ -23,6 +24,7 @@ namespace Jatify.AdminHammer
         private static ConfigEntry<KeyCode> _key;
         private static Panel _panel;
         private static bool _openedByHammer;
+        private Harmony _harmony;
 
         internal static bool PanelOpen => _panel != null && _panel.Open;
         internal static Panel CurrentPanel => _panel;
@@ -33,9 +35,18 @@ namespace Jatify.AdminHammer
             Instance = this;
             Log.Bind(Logger);
             _key = Config.Bind("General", "Key", KeyCode.Insert, "Opens and closes the admin panel. Not F9 (Valheim cycles the controller layout).");
-            new Harmony(Guid).PatchAll(typeof(Plugin).Assembly);
+            _harmony = new Harmony(Guid); _harmony.PatchAll(typeof(Plugin).Assembly);
             Hammer.Register();
-            CommandManager.Instance.AddConsoleCommand(new HammerCommand());
+            if (!CommandManager.Instance.CustomCommands.Any(c => c.Name == "adminhammer")) CommandManager.Instance.AddConsoleCommand(new HammerCommand());   // a hot reload keeps the first one
+        }
+
+        // a hot reload (ScriptEngine) unloads this copy: its patches, panel and placing ghost go with it
+        private void OnDestroy()
+        {
+            _harmony?.UnpatchSelf();
+            Placer.Stop();
+            if (_panel != null) _panel.Destroy();
+            _panel = null;
         }
 
         private void Update()
