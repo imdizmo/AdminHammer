@@ -14,6 +14,7 @@ namespace Jatify.AdminHammer
 
         private static string _prefab;
         private static int _stars, _count;
+        private static bool _tamed;
         private static GameObject _ghost;
         private static float _yaw;
         private static Vector3 _point;
@@ -22,7 +23,7 @@ namespace Jatify.AdminHammer
 
         // Placing needs the Admin hammer in hand (only it places; anything else in hand never spawns).
         // Picked without it: equip it from the inventory, or say how to get one.
-        internal static bool Begin(string prefab, int stars, int count)
+        internal static bool Begin(string prefab, int stars, int count, bool tamed = false)
         {
             Stop();
             if (!Hammer.Equipped && !Hammer.Equip())
@@ -32,7 +33,7 @@ namespace Jatify.AdminHammer
             }
             var go = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefab) : null;
             if (go == null) return false;
-            _prefab = prefab; _stars = stars; _count = Mathf.Max(1, count);
+            _prefab = prefab; _stars = stars; _count = Mathf.Max(1, count); _tamed = tamed;
             _yaw = Player.m_localPlayer != null ? Player.m_localPlayer.transform.eulerAngles.y + 180f : 0f;
             _mask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
             _ghost = Ghost(go);
@@ -67,7 +68,7 @@ namespace Jatify.AdminHammer
                 for (int i = 0; i < _count; i++)
                 {
                     var off = i == 0 ? Vector3.zero : Vector3.ProjectOnPlane(Random.insideUnitSphere, Vector3.up).normalized * Random.Range(1f, 2.5f);
-                    Spawner.Creature(_prefab, _point + off + Vector3.up * 0.2f, Quaternion.Euler(0f, _yaw, 0f), _stars);
+                    Spawner.Creature(_prefab, _point + off + Vector3.up * 0.2f, Quaternion.Euler(0f, _yaw, 0f), _stars, _tamed);
                 }
         }
 

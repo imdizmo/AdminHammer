@@ -26,6 +26,7 @@ namespace Jatify.AdminHammer
         private readonly Dictionary<Tab, string> _sel = new Dictionary<Tab, string>();
         private string _query = "";
         private int _stars, _count = 1, _amount = 10;
+        private bool _tamed;
         private string _target = "";   // "" = me / where I aim, else a player's name
         private string _status = ""; private float _statusUntil;
         private readonly List<RectTransform> _ext = new List<RectTransform>();
@@ -77,7 +78,7 @@ namespace Jatify.AdminHammer
             if (Input.GetKeyDown(KeyCode.Slash) && _search != null && !_search.isFocused && Ext == null) _search.ActivateInputField();
         }
 
-        internal bool Typing => _search != null && _search.isFocused;
+        internal Transform Root => _root;
 
         // the panel's status line (and add-ons' through AdminHammerApi.Status)
         internal void Flash(string text) { _status = text; _statusUntil = Time.unscaledTime + 2.6f; if (Ext == null && Ours != Tab.World) PaintInspector(); else if (Ours == Tab.World && Ext == null) PaintWorld(); }
@@ -197,8 +198,6 @@ namespace Jatify.AdminHammer
         {
             if (_toolbar == null) return; Clear(_toolbar);
             var list = Visible();
-            var t = Text(_toolbar, _query.Length > 0 ? "Results" : _cat[Ours], "bold", 15f, Color.white, 16f, 0f, 200f, 58f);
-            Text(_toolbar, list.Count.ToString(), "mono", 12f, C("mute"), 16f + Width(t) + 6f, 1f, 60f, 58f);
             float right = WorkW - 1f - 16f;
             if (Ours == Tab.Creatures)
             {
@@ -207,14 +206,21 @@ namespace Jatify.AdminHammer
                 right = Label(_toolbar, "Count", cx) - 18f;
                 right -= SegW(new[] { "0★", "1★", "2★" }); float sx = right;
                 Seg(_toolbar, sx, 14f, new[] { "0★", "1★", "2★" }, _stars, i => { _stars = i; PaintToolbar(); PaintInspector(); });
-                Label(_toolbar, "Stars", sx);
+                right = Label(_toolbar, "Stars", sx) - 18f - 38f;
+                Switch(_toolbar, right, 18f, _tamed, on => { _tamed = on; PaintToolbar(); PaintInspector(); });   // user: tameable ones spawn tamed
+                right = Label(_toolbar, "Tamed", right);
             }
             else
             {
                 var opts = new[] { "1", "10", "50", "Stack" }; var vals = new[] { 1, 10, 50, 0 };
                 right -= SegW(opts); Seg(_toolbar, right, 14f, opts, Array.IndexOf(vals, _amount), i => { _amount = vals[i]; PaintToolbar(); PaintInspector(); });
-                Label(_toolbar, "Amount", right);
+                right = Label(_toolbar, "Amount", right);
             }
+            // the title in what is left, shortened with "…" if the controls need the room
+            var n = Text(_toolbar, list.Count.ToString(), "mono", 12f, C("mute"), 0f, 1f, 40f, 58f); float nw = Width(n);
+            var t = Text(_toolbar, _query.Length > 0 ? "Results" : _cat[Ours], "bold", 15f, Color.white, 16f, 0f, 200f, 58f);
+            float tw = Mathf.Min(Width(t), right - 16f - 14f - 6f - nw - 16f); t.rectTransform.sizeDelta = new Vector2(Mathf.Max(20f, tw), 58f);
+            Place(n.rectTransform, 16f + Mathf.Max(20f, tw) + 6f, 1f, nw + 2f, 58f);
         }
         // a small label right before a control, ending at x; returns its start
         private float Label(Transform parent, string s, float x)
@@ -263,7 +269,7 @@ namespace Jatify.AdminHammer
             if (Ours == Tab.Creatures)
             {
                 y += Meta(_ins, x, y, w, (e.Category == "Bosses" ? "Type" : "Biome", e.Category == "Bosses" ? "Boss" : e.Category), ("Stars", _stars > 0 ? new string('★', _stars) : "None"),
-                    ("Count", _count.ToString()), ("Target", _target.Length > 0 ? _target : "Where I aim")) + 14f;
+                    ("Count", _count.ToString()), ("Tamed", !e.Tameable ? "Can't be tamed" : _tamed ? "Yes" : "No"), ("Target", _target.Length > 0 ? _target : "Where I aim")) + 14f;
                 Para(_ins, _target.Length > 0 ? $"Spawns {_count} next to {_target}, facing them." : "The panel closes and a ghost follows your aim. Left click places, the wheel turns it, right click comes back here.", 12.5f, C("mute"), x, y, w, 70f);
                 Primary(_ins, _target.Length > 0 ? $"Spawn next to {_target}" : "Place where I aim", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
             }
@@ -333,12 +339,12 @@ namespace Jatify.AdminHammer
             var e = Selected; if (e == null) return;
             if (Ours == Tab.Creatures)
             {
-                if (_target.Length == 0) { if (Placer.Begin(e.Prefab, _stars, _count)) Close(); return; }
+                if (_target.Length == 0) { if (Placer.Begin(e.Prefab, _stars, _count, _tamed)) Close(); return; }
                 var p = Spawner.Players().FirstOrDefault(x => x.name == _target);
                 if (p.name == null) { Flash($"{_target} is not online"); return; }
                 for (int i = 0; i < _count; i++)
-                    Spawner.Creature(e.Prefab, p.pos + p.forward * 5f + Vector3.up + UnityEngine.Random.insideUnitSphere * 2f, Quaternion.LookRotation(-p.forward), _stars);
-                Flash($"Spawned {_count} × {e.Name}{(_stars > 0 ? " " + new string('★', _stars) : "")} next to {_target}");
+                    Spawner.Creature(e.Prefab, p.pos + p.forward * 5f + Vector3.up + UnityEngine.Random.insideUnitSphere * 2f, Quaternion.LookRotation(-p.forward), _stars, _tamed);
+                Flash($"Spawned {_count} × {e.Name}{(_stars > 0 ? " " + new string('★', _stars) : "")}{(_tamed && e.Tameable ? ", tamed," : "")} next to {_target}");
             }
             else
             {

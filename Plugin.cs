@@ -46,7 +46,7 @@ namespace Jatify.AdminHammer
                 _panel = new Panel(Hud.instance.m_rootObject.transform);
             }
 
-            if (Input.GetKeyDown(_key.Value) && !_panel.Typing && !Console.IsVisible() && !(Chat.instance != null && Chat.instance.HasFocus()))
+            if (Input.GetKeyDown(_key.Value) && !TypingPatch.Active && !Console.IsVisible() && !(Chat.instance != null && Chat.instance.HasFocus()))
             {
                 if (!Spawner.CanAdmin) MessageHud.instance?.ShowMessage(MessageHud.MessageType.Center, "Admin panel: you are not an admin on this server");
                 else { Placer.Stop(); _panel.Toggle(); }
@@ -91,6 +91,27 @@ namespace Jatify.AdminHammer
             ZCursor.Show();
             return false;
         }
+    }
+
+    // While one of the panel's text fields (search, profile name) has focus, Valheim is told that chat has focus, so it
+    // ignores game keys (M opened the map while naming a profile: user). Jatify UI and SeneaL UI do the same.
+    [HarmonyPatch]
+    internal static class TypingPatch
+    {
+        internal static bool Active
+        {
+            get
+            {
+                var go = UnityEngine.EventSystems.EventSystem.current?.currentSelectedGameObject; var p = Plugin.CurrentPanel;
+                if (go == null || p == null || !p.Open) return false;
+                var f = go.GetComponent<TMPro.TMP_InputField>();
+                return f != null && f.isFocused && go.transform.IsChildOf(p.Root);
+            }
+        }
+        [HarmonyPostfix, HarmonyPatch(typeof(Chat), nameof(Chat.HasFocus))]
+        private static void ChatFocus(ref bool __result) { if (!__result && Active) __result = true; }
+        [HarmonyPostfix, HarmonyPatch(typeof(TextInput), nameof(TextInput.IsVisible))]
+        private static void TextVisible(ref bool __result) { if (!__result && Active) __result = true; }
     }
 
     // Placing creatures uses the mouse buttons: don't swing the weapon in hand meanwhile.

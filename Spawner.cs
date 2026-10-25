@@ -7,13 +7,14 @@ namespace Jatify.AdminHammer
     // marked cheated (the user's choice; the game's own spawn command would mark them).
     internal static class Spawner
     {
-        // A creature with 0-2 stars (level = stars + 1), facing `rot`.
-        internal static void Creature(string prefab, Vector3 pos, Quaternion rot, int stars)
+        // A creature with 0-2 stars (level = stars + 1), facing `rot`; tamed when asked and it can be (we own it: we made it).
+        internal static void Creature(string prefab, Vector3 pos, Quaternion rot, int stars, bool tamed = false)
         {
             var go = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefab) : null;
             if (go == null) { Log.Warn($"no prefab {prefab}"); return; }
             var c = Object.Instantiate(go, pos, rot).GetComponent<Character>();
             if (c != null && stars > 0) c.SetLevel(stars + 1);
+            if (c != null && tamed && c.GetComponent<Tameable>() != null) c.SetTamed(true);
         }
 
         // `amount` of an item spilling down in front of `target` (position + forward), like a

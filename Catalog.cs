@@ -14,7 +14,7 @@ namespace Jatify.AdminHammer
         {
             public string Prefab, Name, Category;
             public Sprite Icon;
-            public bool Boss;
+            public bool Boss, Tameable;
             public int MaxStack = 1;
         }
 
@@ -51,7 +51,7 @@ namespace Jatify.AdminHammer
                 if (c == null || c is Player || go.GetComponent<BaseAI>() == null) continue;
                 var name = Localization.instance.Localize(c.m_name);
                 if (string.IsNullOrEmpty(name) || name.StartsWith("[")) continue;
-                Creatures.Add(new Entry { Prefab = go.name, Name = name, Icon = TrophyIcon(go), Boss = c.m_boss, Category = Category(c, go.name, name, homes, rest) });
+                Creatures.Add(new Entry { Prefab = go.name, Name = name, Icon = TrophyIcon(go), Boss = c.m_boss, Tameable = go.GetComponent<Tameable>() != null, Category = Category(c, go.name, name, homes, rest) });
             }
             Creatures.Sort((a, b) => string.CompareOrdinal(a.Name, b.Name));
             Portraits();
