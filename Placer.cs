@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace Jatify.AdminHammer
 {
-    // Creature placement like the hammer: the creature's look follows the aim point, left click
+    // Creature (and item) placement like the hammer: the creature's look follows the aim point, left click
     // places one (count times, scattered a little), right click or Esc stops, the wheel turns it.
     // The ghost is only the creature's visual meshes, copied under an inactive parent so none of
     // their scripts ever wake, then stripped of every script.
@@ -14,7 +14,8 @@ namespace Jatify.AdminHammer
 
         private static string _prefab;
         private static int _stars, _count;
-        private static bool _tamed;
+        private static bool _tamed, _item;
+        private static int _amount;
         private static GameObject _ghost;
         private static float _yaw;
         private static Vector3 _point;
@@ -33,11 +34,26 @@ namespace Jatify.AdminHammer
             }
             var go = ZNetScene.instance != null ? ZNetScene.instance.GetPrefab(prefab) : null;
             if (go == null) return false;
-            _prefab = prefab; _stars = stars; _count = Mathf.Max(1, count); _tamed = tamed;
+            _prefab = prefab; _stars = stars; _count = Mathf.Max(1, count); _tamed = tamed; _item = false;
             _yaw = Player.m_localPlayer != null ? Player.m_localPlayer.transform.eulerAngles.y + 180f : 0f;
             _mask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
             _ghost = Ghost(go);
             Hint($"Placing {Localization.instance.Localize(go.GetComponent<Character>()?.m_name ?? prefab)} - click to place, right click for the menu");
+            return true;
+        }
+
+        // an item placed where you aim, `amount` of it as whole stacks (the Items tab's Place mode)
+        internal static bool BeginItem(string prefab, int amount)
+        {
+            Stop();
+            if (!Hammer.Equipped && !Hammer.Equip()) { Hint("Placing items needs the Admin hammer in hand: type /adminhammer"); return false; }
+            var go = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(prefab) : null;
+            if (go == null) return false;
+            _prefab = prefab; _amount = Mathf.Max(1, amount); _item = true;
+            _yaw = Player.m_localPlayer != null ? Player.m_localPlayer.transform.eulerAngles.y : 0f;
+            _mask = LayerMask.GetMask("Default", "static_solid", "Default_small", "piece", "terrain", "vehicle");
+            _ghost = Ghost(go);
+            Hint($"Placing {_amount} × {Localization.instance.Localize(go.GetComponent<ItemDrop>()?.m_itemData.m_shared.m_name ?? prefab)} - click to place, right click for the menu");
             return true;
         }
 
@@ -64,7 +80,8 @@ namespace Jatify.AdminHammer
             }
             if (Input.GetMouseButtonDown(1)) { Stop(); MenuRequested = true; return; }   // Esc is the game menu's alone
             if (Menu.IsVisible()) return;   // game menu open: keep the selection, place nothing
-            if (_hit && Input.GetMouseButtonDown(0))
+            if (_hit && Input.GetMouseButtonDown(0) && _item) Spawner.Place(_prefab, _amount, _point, Quaternion.Euler(0f, _yaw, 0f));
+            else if (_hit && Input.GetMouseButtonDown(0))
                 for (int i = 0; i < _count; i++)
                 {
                     var off = i == 0 ? Vector3.zero : Vector3.ProjectOnPlane(Random.insideUnitSphere, Vector3.up).normalized * Random.Range(1f, 2.5f);

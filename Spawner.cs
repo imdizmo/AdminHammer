@@ -17,6 +17,18 @@ namespace Jatify.AdminHammer
             if (c != null && tamed && c.GetComponent<Tameable>() != null) c.SetTamed(true);
         }
 
+        // `amount` of an item put down at `pos` as whole stacks (placed with the hammer: user), no spill
+        internal static void Place(string prefab, int amount, Vector3 pos, Quaternion rot)
+        {
+            var go = ObjectDB.instance != null ? ObjectDB.instance.GetItemPrefab(prefab) : null;
+            var drop = go != null ? go.GetComponent<ItemDrop>() : null;
+            if (drop == null) { Log.Warn($"no item {prefab}"); return; }
+            var data = drop.m_itemData.Clone(); data.m_dropPrefab = go;   // as in Spill: DropItem needs it
+            int max = Mathf.Max(1, data.m_shared.m_maxStackSize), i = 0;
+            for (int left = amount; left > 0; left -= max, i++)
+                ItemDrop.DropItem(data, Mathf.Min(left, max), pos + Vector3.up * (0.15f + 0.25f * i), rot);   // more stacks pile up
+        }
+
         // `amount` of an item spilling down in front of `target` (position + forward), like a
         // broken chest: stacks fall from ~3 m with a little outward and upward kick.
         internal static void Spill(string prefab, int amount, Vector3 at, Vector3 forward)

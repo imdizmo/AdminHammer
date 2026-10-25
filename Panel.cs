@@ -26,7 +26,7 @@ namespace Jatify.AdminHammer
         private readonly Dictionary<Tab, string> _sel = new Dictionary<Tab, string>();
         private string _query = "";
         private int _stars, _count = 1, _amount = 10;
-        private bool _tamed;
+        private bool _tamed, _place;   // _place: Items put down where you aim, not dropped in front (user)
         private string _target = "";   // "" = me / where I aim, else a player's name
         private string _status = ""; private float _statusUntil;
         private readonly List<RectTransform> _ext = new List<RectTransform>();
@@ -215,7 +215,10 @@ namespace Jatify.AdminHammer
             {
                 var opts = new[] { "1", "10", "50", "Stack" }; var vals = new[] { 1, 10, 50, 0 };
                 right -= SegW(opts); Seg(_toolbar, right, 14f, opts, Array.IndexOf(vals, _amount), i => { _amount = vals[i]; PaintToolbar(); PaintInspector(); });
-                right = Label(_toolbar, "Amount", right);
+                right = Label(_toolbar, "Amount", right) - 18f;
+                var modes = new[] { "Drop", "Place" };
+                right -= SegW(modes); Seg(_toolbar, right, 14f, modes, _place ? 1 : 0, i => { _place = i == 1; PaintToolbar(); PaintInspector(); PaintFoot(); });
+                right = Label(_toolbar, "Mode", right);
             }
             // the title in what is left, shortened with "…" if the controls need the room
             var n = Text(_toolbar, list.Count.ToString(), "mono", 12f, C("mute"), 0f, 1f, 40f, 58f); float nw = Width(n);
@@ -245,7 +248,7 @@ namespace Jatify.AdminHammer
             {
                 var e = list[i];
                 var tile = Tile(_grid, e.Icon, e.Name, sel == e, 16f + (i % 3) * (tw + 8f), 14f + (i / 3) * 68f, tw,
-                    () => { _sel[Ours] = e.Prefab; _status = ""; if (Ours == Tab.Creatures && _target.Length == 0) { Act(); return; } PaintGrid(); PaintInspector(); },   // like the hammer: a creature goes straight to placing
+                    () => { _sel[Ours] = e.Prefab; _status = ""; if ((Ours == Tab.Creatures || _place) && _target.Length == 0) { Act(); return; } PaintGrid(); PaintInspector(); },   // like the hammer: a creature goes straight to placing
                     () => { _sel[Ours] = e.Prefab; Act(); });
                 if (Ours == Tab.Creatures && e.Boss) Tag(tile, "BOSS", "boss");
             }
@@ -278,8 +281,9 @@ namespace Jatify.AdminHammer
             {
                 int amount = _amount == 0 ? e.MaxStack : _amount;
                 y += Meta(_ins, x, y, w, ("Category", e.Category), ("Stack size", e.MaxStack.ToString()), ("Amount", _amount == 0 ? $"Full stack ({e.MaxStack})" : _amount.ToString()), ("For", _target.Length > 0 ? _target : "Me")) + 14f;
-                Para(_ins, "Spills out like a broken chest. Double click a tile to drop straight away.", 12.5f, C("mute"), x, y, w, 50f);
-                Primary(_ins, $"Drop {amount}", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
+                bool place = _place && _target.Length == 0;
+                Para(_ins, place ? "Clicking an item closes the panel and it follows your aim. Left click puts the stacks down there, right click comes back here." : "Spills out like a broken chest. Double click a tile to drop straight away.", 12.5f, C("mute"), x, y, w, 60f);
+                Primary(_ins, place ? $"Place {amount} where I aim" : $"Drop {amount}", x, Body - 1f - 18f - 22f - 50f, w, 42f, Act);
             }
             Status(x, w);
         }
@@ -328,6 +332,7 @@ namespace Jatify.AdminHammer
             float x = 16f, h = Foot - 1f;
             if (Ext != null) { try { Ext.Footer?.Invoke(_foot); } catch (Exception e) { Log.Warn($"tab {Ext.Name}: {e}"); } }
             else if (Ours == Tab.Creatures) { x = Key(_foot, "Click", _target.Length == 0 ? "place in the world" : "select", x, h); x = Key(_foot, "Right click", "close", x, h); Key(_foot, Plugin.KeyName, "open or close", x, h); }
+            else if (Ours == Tab.Items && _place && _target.Length == 0) { x = Key(_foot, "Click", "place in the world", x, h); x = Key(_foot, "Right click", "close", x, h); Key(_foot, "/", "search", x, h); }
             else if (Ours == Tab.Items) { x = Key(_foot, "Click", "select", x, h); x = Key(_foot, "Double click", "drop", x, h); x = Key(_foot, "Right click", "close", x, h); Key(_foot, "/", "search", x, h); }
             else Key(_foot, Plugin.KeyName, "open or close", x, h);
             var r = Text(_foot, "Host or server admin only", "medium", 12.5f, C("mute"), 0f, 0f, 300f, h, TextAlignmentOptions.MidlineRight);
@@ -350,6 +355,7 @@ namespace Jatify.AdminHammer
             else
             {
                 int amount = _amount == 0 ? e.MaxStack : _amount;
+                if (_place && _target.Length == 0) { if (Placer.BeginItem(e.Prefab, amount)) Close(); return; }
                 if (_target.Length == 0)
                 {
                     var me = Player.m_localPlayer; if (me == null) return;
