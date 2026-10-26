@@ -1,5 +1,7 @@
 # AdminHammer
 
+[![Join the Discord](https://jatify.com/badges/discord.png)](https://discord.gg/Ru9t2KdfVK) [![Buy me a coffee](https://jatify.com/badges/coffee.png)](https://buymeacoffee.com/imdizmo)
+
 An admin tool for server owners and game masters, in the Jatify design. With [Jatify UI](https://jatify.com) installed it has Jatify UI's exact look; without it, the same design in Valheim's font. Needs no other UI mod.
 
 [Thunderstore](https://thunderstore.io/c/valheim/p/Jatify/AdminHammer/) · [GitHub](https://github.com/imdizmo/AdminHammer) · [jatify.com](https://jatify.com/#adminhammer)
