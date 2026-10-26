@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+<!-- AdminHammer icon in the Jatify style (Jatify UI's tile: dark glass, faint green edge, a flat green glyph).
+     Render: rsvg-convert -w 256 -h 256 tools/icon.svg -o package/icon.png -->
+  <rect x="8" y="8" width="240" height="240" rx="40" fill="#141416" stroke="#22D67E" stroke-opacity=".33" stroke-width="2"/>
+  <g transform="translate(7 7) rotate(-35 128 128) translate(0 6)" fill="#22D67E">
+    <rect x="76" y="64" width="104" height="44" rx="9"/>
+    <rect x="64" y="58" width="16" height="56" rx="6"/>
+    <rect x="176" y="58" width="16" height="56" rx="6"/>
+    <rect x="119" y="96" width="18" height="112" rx="7"/>
+  </g>
+  <g transform="translate(7 7) rotate(-35 128 128) translate(0 6)" fill="#141416" opacity=".9">
+    <rect x="80" y="104" width="96" height="4"/>
+    <rect x="119" y="150" width="18" height="3"/><rect x="119" y="166" width="18" height="3"/><rect x="119" y="182" width="18" height="3"/>
+  </g>
+</svg>
