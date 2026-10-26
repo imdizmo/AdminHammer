@@ -70,6 +70,7 @@ Only you need the mod: nothing is required on the server or on other players' cl
 - Item and command registration: [Jotunn](https://thunderstore.io/c/valheim/p/ValheimModding/Jotunn/), by the Valheim Modding team.
 - Mod loader: [BepInEx](https://github.com/BepInEx/BepInEx).
 - Creature biomes: Valheim's own spawn tables, plus the creature list of the [Valheim Wiki](https://valheim.weirdgloop.org/w/Creatures).
+- Code: written together with Claude (Anthropic's AI), which shows up as a co-author in the commit history.
 
 AdminHammer is an unofficial, fan-made mod. It is not made, endorsed or supported by Iron Gate AB. Please report AdminHammer bugs here. Valheim is a trademark of Iron Gate AB.
 
