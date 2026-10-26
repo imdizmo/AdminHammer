@@ -19,15 +19,17 @@ An admin tool for server owners and game masters, in the Jatify design. With [Ja
 
 ## Screenshots
 
-![Spawn creatures: pick a biome and a creature, set stars and count](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/creatures.webp)
+![Creatures: pick a biome and a creature, set stars, count and whether it spawns tamed](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/creatures.webp)
 
-![A troll placed where you aim](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/spawned-troll.webp)
+![Placing a Seeker Soldier where you aim](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/placing.webp)
 
-![Spawn items: pick an item and an amount, then drop it](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/items.webp)
+![Items: pick an item and an amount, then drop it or place it where you aim](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/items.webp)
 
-![Dropped items, ready to pick up](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/dropped-items.webp)
+![Ten Midsummer Crowns placed and picked up](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/placed-items.webp)
 
 ![World modifiers, applied live on the server](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/world-modifiers.webp)
+
+![The world rules: no build cost, player based raids, fire hazards, passive enemies, no map](https://raw.githubusercontent.com/imdizmo/AdminHammer/main/screenshots/world-rules.webp)
 
 The Buffs tab in the screenshots comes from the [BuffMeDaddy](https://thunderstore.io/c/valheim/p/Jatify/BuffMeDaddy/) add-on and is not part of AdminHammer.
 
