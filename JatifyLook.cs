@@ -31,7 +31,7 @@ namespace Jatify
 
         internal static bool On => Look() != null;
 
-        // the design's tokens (live artifact :root), used when Jatify is not there
+        // the design's tokens (:root), used when Jatify is not there
         private static readonly Dictionary<string, string> Plain = new Dictionary<string, string>
         {
             ["glass"] = "#141416EB", ["glassLine"] = "#FFFFFF26", ["line2"] = "#FFFFFF29", ["raised"] = "#2A2B30F2", ["raised2"] = "#2C2C32E6",

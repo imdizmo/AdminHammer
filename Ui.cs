@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace Jatify.AdminHammer
 {
-    // The panel's parts from the Jatify design (live artifact, AdminHammer view), public so add-ons (BuffMeDaddy) build
+    // The panel's parts from the Jatify design (AdminHammer view), public so add-ons (BuffMeDaddy) build
     // their tabs from the same pieces. Colours and fonts come from Jatify UI when it is installed, the design's own
     // values and Valheim's font otherwise (JatifyLook). Coordinates are top-left, in pixels.
     public static class AdminHammerUi

@@ -8,7 +8,7 @@ using static Jatify.AdminHammer.AdminHammerUi;
 
 namespace Jatify.AdminHammer
 {
-    // The admin panel from the Jatify design (live artifact, AdminHammer view): 1100 x 660, a header with the tabs, the
+    // The admin panel from the Jatify design (AdminHammer view): 1100 x 660, a header with the tabs, the
     // target and Close; a rail (search, categories), the tiles with their options, an inspector with the one action
     // that matters; a key-hint footer. World is one column of rows. Add-on tabs (AdminHammerApi) fill the body.
     // ponytail: a change rebuilds the parts it touches (no pooling); a few hundred tiles is fine.
