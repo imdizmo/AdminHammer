@@ -126,7 +126,7 @@ namespace Jatify.AdminHammer
     }
 
     // While one of the panel's text fields (search, profile name) has focus, Valheim is told that chat has focus, so it
-    // ignores game keys (M opened the map while naming a profile: user). Jatify UI and SeneaL UI do the same.
+    // ignores game keys (M opened the map while naming a profile: user).
     [HarmonyPatch]
     internal static class TypingPatch
     {
